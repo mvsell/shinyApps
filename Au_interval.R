@@ -4,13 +4,13 @@ library(ggplot2)
 library(dplyr)
 library(zoo)
 
-cutoff <- 0.2
-topcut <- 3
+cutoff <- 0
+topcut <- 1000
 
 
 
 # load data ---------------------------------------------------------------
-DHinterval <- read.csv("Au_Interval.csv", header = TRUE)
+DHinterval <- read.csv("data/Au_Interval.csv", header = TRUE)
 
 
 # Interval identification -------------------------------------------------
@@ -20,11 +20,11 @@ DHinterval$ints <- findInterval(DHinterval$Au_ppm, cutoff)
 
 
 # make a dataframe with start positions of runs of 1's 
-starts <- filter(DHinterval, Au_ppm > cutoff & ((lag(ints) == 0 | is.na(lag(ints)))& lead(ints) == 1)) 
+starts <- filter(DHinterval, Au_ppm >= cutoff & ((lag(ints) == 0 | is.na(lag(ints)))& lead(ints) == 1)) 
 starts$position <- rep('start', dim(starts)[1])
 
 # make a dataframe with end positions of runs of 1's 
-ends <- filter(DHinterval, Au_ppm > cutoff & (lag(ints) == 1 & (lead(ints) == 0) | is.na(lead(ints)))) 
+ends <- filter(DHinterval, Au_ppm >= cutoff & (lag(ints) == 1 & (lead(ints) == 0) | is.na(lead(ints)))) 
 ends$position <- rep('end', dim(ends)[1])
 
 # make a dataframe with groups of runs
@@ -43,7 +43,7 @@ DHinterval_grouped$group[DHinterval_grouped$ints == 0] <- 0
 # fill in NA's with last values (singles will get filled in with 0?) 
 new_groups <- na.locf(DHinterval_grouped$group)
 
-if (length(new_groups < length(DHinterval_grouped$group))) {
+if (length(new_groups) < length(DHinterval_grouped$group)) {
   new_groups <- append(0, new_groups)
 }
 
@@ -51,6 +51,9 @@ DHinterval_grouped$group <- new_groups
 
 
 # aggregate statistics ----------------------------------------------------
+
+# ceiling values above to top cut to top cut value
+DHinterval_grouped$Au_ppm[DHinterval_grouped$Au_ppm >= topcut] <- topcut
 
 # calculate mean for each Au group
 Au_means <- DHinterval_grouped %>%
