@@ -5,7 +5,7 @@
 
 
 # Set wd
-#setwd("C:/Data/SCRIPTS/R/Uncertainty/MCSims/simsShinyApp")
+# setwd("C:/Data/SCRIPTS/R/OGWI_toolV1/DH_interval/OGWI_ToolV1")
 
 # Set libraries
 library(shiny)
@@ -21,8 +21,8 @@ library(shinyjs)
 
 # Global variables can go here
 
-df1 <- readRDS('data/Au_Interval.Rds')
-df1[,4] <- log10(df1[, 4])
+df1 <- readRDS('Data/Au_Interval.Rds')
+#df1[,4] <- log10(df1[, 4])
 
 # JScode <-
 #   "$(function() {
@@ -58,6 +58,13 @@ ui <-
                         min = -2.1,
                         max = 2.1,
                         value = c(-0.1, 1.1)
+                      ),
+                      sliderInput(
+                        "slider2",
+                        "Dilution Interval",
+                        min = 0,
+                        max = 10,
+                        value = c(2)
                       )
                ),
                
@@ -73,6 +80,19 @@ ui <-
                         column(width =12,
                                plotOutput("plot7", height = "300px", width = "400px")))
              )
+             )),
+    tabPanel("Results", " ",
+             fluidRow(
+               titlePanel(h2("results2"), br()),
+               column(width = 4,
+                      h4("resutls3"),br(),
+                      dataTableOutput('df2')),
+               column(width = 6,
+                      " ",
+                      fluidRow(
+                        column(width =12,
+                               plotOutput("plot8", height = "300px", width = "450px")))
+               )
              ))
   )))
 server <- function(input, output) {
@@ -88,15 +108,16 @@ server <- function(input, output) {
     
   })
   
-  
-  x <- reactive({
-    1:dim(filedata())[1]
+  df2 <- reactive({
+    # ifelse(filedata()[[input$selectcol2]]>input$slider1[1] & filedata()[[input$selectcol2]]<input$slider1[2], 1, 0)
+    ifelse(filedata()[[input$selectcol2]]>0.2 & filedata()[[input$selectcol2]]<2, 1, 0)
   })
+  
+#  df1$mavg <- NA
   
   output$selectcol1 <- renderUI({
     df <-filedata()
     if (is.null(df)) return(NULL)
-    
     items=names(df)
     names(items)=items
     selectInput("selectcol1", "From",items)
@@ -115,7 +136,9 @@ server <- function(input, output) {
   output$filedata = renderDataTable({
     filedata()
   })
-  
+  output$df2 = renderDataTable({
+    df2()
+  })  
   
   output$mytable = renderTable({
     #beans
@@ -126,8 +149,8 @@ server <- function(input, output) {
   
   output$plot6 <- renderPlot({
     ggplot(filedata()) +
-      geom_line(aes(y= 10^filedata()[[input$selectcol2]], x= filedata()[[input$selectcol1]])) +
-      geom_line(aes(y = -2, x= filedata()[[input$selectcol1]], colour = ( filedata()[[input$selectcol2]])), size=2) +
+      geom_line(aes(y= filedata()[[input$selectcol2]], x= filedata()[[input$selectcol1]])) +
+      geom_line(aes(y = -2, x= filedata()[[input$selectcol1]], colour = log10( filedata()[[input$selectcol2]])), size=2) +
       coord_flip() +
       scale_x_reverse() +
       scale_colour_gradientn("Grade", colours = rev(rainbow(5))) +
@@ -137,12 +160,21 @@ server <- function(input, output) {
   output$plot7 <- renderPlot({
     ggplot(filedata(), aes(sample = filedata()[[input$selectcol2]])) +
       stat_qq() +
-      #scale_y_log10() +
+      scale_y_log10() +
       geom_hline(aes(yintercept=input$slider1[1])) + # cutoff
       geom_hline(aes(yintercept=input$slider1[2])) + # top cut
       labs(title ="Q-Q Plot", x = "Normal Theoretical Quantiles", y = "Normal Data Quantiles")
       })
   
+  output$plot8 <- renderPlot({
+    ggplot(filedata()) +
+      geom_line(aes(y= filedata()[[input$selectcol2]], x= filedata()[[input$selectcol1]])) +
+      geom_line(aes(y = -2, x= filedata()[[input$selectcol1]], colour = log10( filedata()[[input$selectcol2]])), size=2) +
+      coord_flip() +
+      scale_x_reverse() +
+      scale_colour_gradientn("Grade", colours = rev(rainbow(5))) +
+      labs(title ="DH Grade", x = "Depth (m)", y = "Assay")
+  })
   }
 
 shinyApp(ui = ui, server = server)
